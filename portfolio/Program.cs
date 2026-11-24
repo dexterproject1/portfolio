@@ -1,7 +1,18 @@
+using Npgsql;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// Database: read the connection string from User Secrets and create one shared data source.
+var connectionString = builder.Configuration.GetConnectionString("Portfolio");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'Portfolio' is missing. Add it in Manage User Secrets.");
+}
+var dataSource = NpgsqlDataSource.Create(connectionString);
+builder.Services.AddSingleton(dataSource);
 
 var app = builder.Build();
 
@@ -24,6 +35,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();
