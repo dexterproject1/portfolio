@@ -42,4 +42,57 @@ public class CourseRepository
 
         return courses;
     }
+
+    // CREATE: insert a new course. The database chooses its course_id.
+    public async Task AddAsync(Course course)
+    {
+        const string sql = "INSERT INTO portfolio.course (code, title, description) " +
+                           "VALUES (@code, @title, @description);";
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("code", course.Code);
+        command.Parameters.AddWithValue("title", course.Title);
+        command.Parameters.AddWithValue("description", (object?)course.Description ?? DBNull.Value);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    // READ: one course, or null when no course has that id.
+    public async Task<Course?> GetByIdAsync(long id)
+    {
+        const string sql = "SELECT course_id, code, title, description FROM portfolio.course WHERE course_id = @id;";
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("id", id);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? ReadCourse(reader) : null;
+    }
+
+    // UPDATE: change every column of one course.
+    public async Task UpdateAsync(Course course)
+    {
+        const string sql = "UPDATE portfolio.course " +
+                           "SET code = @code, title = @title, description = @description " +
+                           "WHERE course_id = @id;";
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("code", course.Code);
+        command.Parameters.AddWithValue("title", course.Title);
+        command.Parameters.AddWithValue("description", (object?)course.Description ?? DBNull.Value);
+        command.Parameters.AddWithValue("id", course.CourseId);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    // DELETE: remove one course.
+    public async Task DeleteAsync(long id)
+    {
+        const string sql = "DELETE FROM portfolio.course WHERE course_id = @id;";
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("id", id);
+
+        await command.ExecuteNonQueryAsync();
+    }
 }
