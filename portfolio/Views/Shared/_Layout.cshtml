@@ -32,6 +32,14 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Projects" asp-action="Index">Projects</a>
                         </li>
+
+                        <li class="nav-item ms-auto">
+                            <form asp-controller="Mode" asp-action="Toggle" method="post" class="d-inline">
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                <span class="me-2 text-muted small">@(Context.IsEditor() ? "Editor mode" : "Viewer mode")</span>
+                                <button type="submit" class="btn btn-sm btn-outline-dark">@(Context.IsEditor() ? "Switch to viewer" : "Switch to editor")</button>
+                            </form>
+                        </li>
                     </ul>
                 </div>
             </div>

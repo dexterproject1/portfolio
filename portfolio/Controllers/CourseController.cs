@@ -14,7 +14,7 @@ public class CoursesController : Controller
         _courses = courses;
     }
 
-    // GET /Courses : the list of courses.
+    // GET /Courses : the list of courses. Everyone can see it.
     public async Task<IActionResult> Index()
     {
         var courses = await _courses.GetAllAsync();
@@ -22,6 +22,7 @@ public class CoursesController : Controller
     }
 
     // GET /Courses/Create : an empty form.
+    [EditorOnly]
     public IActionResult Create()
     {
         return View(new Course());
@@ -30,6 +31,7 @@ public class CoursesController : Controller
     // POST /Courses/Create : the form was submitted.
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EditorOnly]
     public async Task<IActionResult> Create(Course course)
     {
         if (!ModelState.IsValid)
@@ -51,6 +53,7 @@ public class CoursesController : Controller
     }
 
     // GET /Courses/Edit/5 : the form, filled with course 5.
+    [EditorOnly]
     public async Task<IActionResult> Edit(long id)
     {
         var course = await _courses.GetByIdAsync(id);
@@ -64,6 +67,7 @@ public class CoursesController : Controller
     // POST /Courses/Edit/5 : the changed form was submitted.
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EditorOnly]
     public async Task<IActionResult> Edit(Course course)
     {
         if (!ModelState.IsValid)
@@ -85,6 +89,7 @@ public class CoursesController : Controller
     }
 
     // GET /Courses/Delete/5 : ask "are you sure?"
+    [EditorOnly]
     public async Task<IActionResult> Delete(long id)
     {
         var course = await _courses.GetByIdAsync(id);
@@ -98,6 +103,7 @@ public class CoursesController : Controller
     // POST /Courses/Delete/5 : the delete was confirmed.
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
+    [EditorOnly]
     public async Task<IActionResult> DeleteConfirmed(long id)
     {
         try
