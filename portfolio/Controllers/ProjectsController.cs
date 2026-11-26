@@ -120,4 +120,105 @@ public class ProjectsController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // GET /Projects/Edit/5 : the form, filled with project 5 and its images.
+    public async Task<IActionResult> Edit(long id)
+    {
+        var project = await _projects.GetByIdAsync(id);
+        if (project == null)
+        {
+            return NotFound();
+        }
+
+        var images = await _images.GetByProjectAsync(id);
+
+        var form = new ProjectForm
+        {
+            ProjectId = project.ProjectId,
+            CourseId = project.CourseId,
+            Title = project.Title,
+            Description = project.Description,
+            YearMade = project.YearMade,
+            VideoUrl = project.VideoUrl,
+            ImageUrls = string.Join("\n", images.Select(i => i.ImageUrl))
+        };
+
+        await FillCoursesAsync();
+        return View(form);
+    }
+
+    // POST /Projects/Edit/5 : the changed form was submitted.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(ProjectForm form)
+    {
+        var urls = ParseUrls(form.ImageUrls);
+
+        foreach (var url in urls)
+        {
+            if (!Regex.IsMatch(url, ImageUrlPattern))
+            {
+                ModelState.AddModelError("ImageUrls", $"Not a valid https address: {url}");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            await FillCoursesAsync();
+            return View(form);
+        }
+
+        var project = new Project
+        {
+            ProjectId = form.ProjectId,
+            CourseId = form.CourseId!.Value,
+            Title = form.Title,
+            Description = form.Description,
+            YearMade = form.YearMade,
+            VideoUrl = form.VideoUrl
+        };
+
+        try
+        {
+            bool found = await _projects.UpdateWithImagesAsync(project, urls);
+            if (!found)
+            {
+                return NotFound();
+            }
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            ModelState.AddModelError("ImageUrls", "The same image address appears twice. Nothing was saved.");
+            await FillCoursesAsync();
+            return View(form);
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.CheckViolation)
+        {
+            ModelState.AddModelError("YearMade", "The database refused this year. Nothing was saved.");
+            await FillCoursesAsync();
+            return View(form);
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    // GET /Projects/Delete/5 : ask "are you sure?"
+    public async Task<IActionResult> Delete(long id)
+    {
+        var project = await _projects.GetByIdAsync(id);
+        if (project == null)
+        {
+            return NotFound();
+        }
+        return View(project);
+    }
+
+    // POST /Projects/Delete/5 : the delete was confirmed.
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(long id)
+    {
+        await _projects.DeleteAsync(id);
+        return RedirectToAction(nameof(Index));
+    }
 }

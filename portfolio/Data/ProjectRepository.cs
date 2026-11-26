@@ -109,4 +109,75 @@ public class ProjectRepository
             throw;
         }
     }
+
+    // UPDATE: change a project and replace all its images in ONE transaction.
+    // Returns false when no project has that id. Any refusal rolls everything back.
+    public async Task<bool> UpdateWithImagesAsync(Project project, List<string> imageUrls)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        try
+        {
+            int rows;
+            await using (var update = new NpgsqlCommand(
+                "UPDATE portfolio.project " +
+                "SET course_id = @course_id, title = @title, description = @description, " +
+                "    year_made = @year_made, video_url = @video_url " +
+                "WHERE project_id = @id;",
+                connection, transaction))
+            {
+                update.Parameters.AddWithValue("course_id", project.CourseId);
+                update.Parameters.AddWithValue("title", project.Title);
+                update.Parameters.AddWithValue("description", (object?)project.Description ?? DBNull.Value);
+                update.Parameters.AddWithValue("year_made", project.YearMade);
+                update.Parameters.AddWithValue("video_url", (object?)project.VideoUrl ?? DBNull.Value);
+                update.Parameters.AddWithValue("id", project.ProjectId);
+                rows = await update.ExecuteNonQueryAsync();
+            }
+
+            if (rows == 0)
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+
+            // Remove the old images, then add the images from the form.
+            await using (var delete = new NpgsqlCommand(
+                "DELETE FROM portfolio.project_image WHERE project_id = @id;", connection, transaction))
+            {
+                delete.Parameters.AddWithValue("id", project.ProjectId);
+                await delete.ExecuteNonQueryAsync();
+            }
+
+            foreach (var url in imageUrls)
+            {
+                await using var insertImage = new NpgsqlCommand(
+                    "INSERT INTO portfolio.project_image (project_id, image_url) VALUES (@project_id, @image_url);",
+                    connection, transaction);
+                insertImage.Parameters.AddWithValue("project_id", project.ProjectId);
+                insertImage.Parameters.AddWithValue("image_url", url);
+                await insertImage.ExecuteNonQueryAsync();
+            }
+
+            await transaction.CommitAsync();
+            return true;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    // DELETE: remove one project. Its images are removed by ON DELETE CASCADE.
+    public async Task DeleteAsync(long id)
+    {
+        const string sql = "DELETE FROM portfolio.project WHERE project_id = @id;";
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("id", id);
+
+        await command.ExecuteNonQueryAsync();
+    }
 }
